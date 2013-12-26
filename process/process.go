@@ -9,6 +9,8 @@ import (
 )
 
 type ProcessState int
+type CtrlState int
+type Event int
 
 const (
 	ProcessStopped ProcessState = iota
@@ -18,8 +20,14 @@ const (
 )
 
 const (
-	COMMAND_START int = iota
+	StartEvent Event = iota
+	StopEvent
+)
+
+const (
+	COMMAND_START CtrlState = iota
 	COMMAND_STOP
+	COMMAND_RESTART
 )
 
 type processCommand struct {
@@ -74,7 +82,7 @@ type Process struct {
 	Throttle time.Duration `json:"throttle"`
 
 	// Restart process it exits
-	KeepAlive bool
+	KeepAlive bool `json:"keep_alive"`
 
 	// User and Group to switch to after exec
 	User  string `json:"user"`
@@ -83,10 +91,13 @@ type Process struct {
 	// Internal state of the process
 	state ProcessState
 
-	proc       os.Process
+	proc       *os.Process
 	outputChan chan []byte
 	done       chan int
 	commands   chan processCommand
+	Events     chan Event
+	manage     chan CtrlState
+	waitChan   chan bool
 
 	runner ProcessRunner
 
@@ -112,11 +123,14 @@ func NewProcess(name string, command ...string) *Process {
 		KillTimeout: time.Second * 10,
 		KillSignal:  os.Signal(syscall.SIGQUIT),
 		KeepAlive:   true,
-		Throttle:    10 * time.Millisecond,
+		Throttle:    time.Second * 10,
 
 		outputChan: make(chan []byte, 0),
 		done:       make(chan int),
 		commands:   make(chan processCommand, 1),
+		manage:     make(chan CtrlState),
+		Events:     make(chan Event),
+		waitChan:   make(chan bool),
 
 		stateMu: new(sync.Mutex),
 		Mutex:   new(sync.Mutex),
@@ -127,10 +141,21 @@ func (p *Process) OutputChan() chan []byte {
 	return p.outputChan
 }
 
+// Status returns the process state
 func (p *Process) Status() string {
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
 	return p.state.String()
+}
+
+func (p *Process) setStatus(state ProcessState) {
+	p.stateMu.Lock()
+	defer p.stateMu.Unlock()
+	p.state = state
+}
+
+func (p *Process) Wait() {
+	<-p.waitChan
 }
 
 // SetRunner sets the process runner (useful for testing with a mock runner)
@@ -147,6 +172,7 @@ func (p *Process) exec() error {
 		p.runner = &DefaultRunner{}
 	}
 
+	p.setStatus(ProcessStarting)
 	p.StartedAt = time.Now()
 
 	proc, err := p.runner.Exec(p, p.outputChan, p.done)
@@ -154,8 +180,9 @@ func (p *Process) exec() error {
 		return err
 	}
 
-	p.state = ProcessRunning
+	p.proc = proc
 
+	p.setStatus(ProcessRunning)
 	p.setPid(proc.Pid)
 	return nil
 }
@@ -188,38 +215,82 @@ func (p *Process) finish(status int) {
 }
 
 func (p *Process) Run() {
-	// go p.runloop()
+	go p.runloop()
 }
 
-// func (p *Process) runloop() {
-// 	go func(p *Process) {
-// 		var willExit bool = false
+func (p *Process) runloop() {
+	go func(p *Process) {
+		// var willExit bool = false
 
-// 		for {
-// 			select {
-// 			case status := <-p.done:
-// 				fmt.Println("Processs Exited")
+		for {
+			select {
+			case status := <-p.done:
+				fmt.Println("Processs Exited")
 
-// 				p.finish(status)
+				p.finish(status)
 
-// 				if p.KeepAlive && !willExit {
-// 					<-time.After(p.Throttle)
-// 					p.Start()
-// 				}
+				select {
+				case p.waitChan <- true:
+				default:
+				}
 
-// 				willExit = false
+				select {
+				case p.Events <- StopEvent:
+				default:
+				}
 
-// 			case command := <-p.commands:
-// 				switch command.Command {
-// 				case COMMAND_START:
-// 					command.Reply <- p.exec()
+				// 				if p.KeepAlive && !willExit {
+				// 					<-time.After(p.Throttle)
+				// 					p.Start()
+				// 				}
 
-// 				case COMMAND_STOP:
-// 					// User initiated stop, do not relaunch
-// 					willExit = true
-// 					command.Reply <- p.terminate()
-// 				}
-// 			}
-// 		}
-// 	}(p)
-// }
+				// willExit = false
+
+			case ctrlState := <-p.manage:
+				switch ctrlState {
+				case COMMAND_START:
+					err := p.exec()
+					if err != nil {
+						fmt.Println("Failed to start process:", err.Error())
+					} else {
+						select {
+						case p.Events <- StartEvent:
+						default:
+						}
+					}
+
+					fmt.Println("Started")
+
+				case COMMAND_STOP:
+					fmt.Println("Received stop command", p.proc.Pid)
+					if p.proc != nil {
+						p.terminate()
+					} else {
+						fmt.Println("proc is nil")
+					}
+
+					// err := p.terminate()
+					// if err != nil {
+					// 	fmt.Println("Error terminating process", err.Error())
+					// }
+
+				case COMMAND_RESTART:
+					p.manage <- COMMAND_STOP
+					<-time.After(p.Throttle)
+					p.manage <- COMMAND_START
+				}
+
+				// 			case command := <-p.commands:
+				// 				switch command.Command {
+				// 				case COMMAND_START:
+				// 					command.Reply <- p.exec()
+
+				// 				case COMMAND_STOP:
+				// 					// User initiated stop, do not relaunch
+				// 					willExit = true
+				// 					command.Reply <- p.terminate()
+				// 				}
+			}
+		}
+	}(p)
+}
