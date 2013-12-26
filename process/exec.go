@@ -24,7 +24,7 @@ func (r *DefaultRunner) Exec(p *Process, outputChan chan []byte, done chan int) 
 
 	executable, err := exec.LookPath(p.Command[0])
 	if err != nil {
-		return proc, err
+		return nil, err
 	}
 
 	cmd := exec.Command(executable, p.Command[1:]...)
@@ -36,7 +36,7 @@ func (r *DefaultRunner) Exec(p *Process, outputChan chan []byte, done chan int) 
 	cmd.Stdout = writer
 
 	if err := cmd.Start(); err != nil {
-		return proc, err
+		return nil, err
 	}
 
 	go func() {
@@ -55,7 +55,6 @@ func (r *DefaultRunner) Exec(p *Process, outputChan chan []byte, done chan int) 
 			case *os.PathError:
 				exitStatus = 127
 			}
-			// fmt.Println("Process Exited (wait complete)", exitStatus, err.Error())
 		}
 		done <- exitStatus
 	}()
