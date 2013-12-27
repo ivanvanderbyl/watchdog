@@ -22,7 +22,7 @@ func Test_Process_impl(t *testing.T) {
 func TestProcesStart(t *testing.T) {
 	proc := NewProcess("echo", "/bin/sleep", "0.2")
 	proc.Run()
-	proc.manage <- COMMAND_START
+	proc.Start()
 
 	go func() {
 		for {
@@ -34,7 +34,6 @@ func TestProcesStart(t *testing.T) {
 				switch event {
 				case StopEvent:
 					t.Logf("Process completed with exit status: %d", proc.LastExitStatus)
-				// return
 				case StartEvent:
 					t.Logf("Process started with PID: %d", proc.PID)
 				}
@@ -47,13 +46,44 @@ func TestProcesStart(t *testing.T) {
 	t.Logf("Done")
 }
 
-func TestProcesStop(t *testing.T) {
-	proc := NewProcess("echo", "/bin/sleep", "3")
-	// proc := NewProcess("echo", "/bin/echo", "Hello")
+func TestProcesHasPidAfterStart(t *testing.T) {
+	proc := NewProcess("echo", "/bin/sleep", "0.2")
 	proc.Run()
-	proc.manage <- COMMAND_START
+	proc.Start()
+
+	if proc.pid == 0 {
+		t.Error("proc.PID=0")
+	} else {
+		t.Logf("proc.PID=%d", proc.PID())
+	}
 
 	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-time.After(2 * time.Second):
+	// 			t.Error("Timed out")
+	// 			break
+	// 		case event := <-proc.Events:
+	// 			switch event {
+	// 			case StopEvent:
+	// 				t.Logf("Process completed with exit status: %d", proc.LastExitStatus)
+	// 			case StartEvent:
+	// 				t.Logf("Process started with PID: %d", proc.PID)
+	// 			}
+	// 			break
+	// 		}
+	// 	}
+	// }()
+
+	proc.Wait()
+	t.Logf("Done")
+}
+
+func TestProcesStop(t *testing.T) {
+	proc := NewProcess("echo", "/bin/sleep", "3")
+	proc.Run()
+	proc.Start()
+
 	for {
 		select {
 		case <-time.After(2 * time.Second):
@@ -69,15 +99,9 @@ func TestProcesStop(t *testing.T) {
 				t.Log("Sending stop")
 
 				<-time.After(1 * time.Second)
-				proc.manage <- COMMAND_STOP
+				proc.Stop()
 			}
 		}
 	}
 	t.Log("Mon loop done")
-	// }()
-
-	// t.Logf("Out: %s", <-proc.OutputChan())
-
-	// proc.Wait()
-	// t.Logf("Done")
 }

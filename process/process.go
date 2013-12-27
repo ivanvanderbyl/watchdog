@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	COMMAND_START CtrlState = iota
+	COMMAND_START int = iota
 	COMMAND_STOP
 	COMMAND_RESTART
 )
@@ -55,7 +55,7 @@ type Process struct {
 	Name string `json:"name"`
 
 	// Process Identifier
-	PID int `json:"pid,int"`
+	pid int `json:"pid,int"`
 
 	// Last status code from this process exiting
 	LastExitStatus int `json:"last_exit_status,int"`
@@ -96,14 +96,15 @@ type Process struct {
 	done       chan int
 	commands   chan processCommand
 	Events     chan Event
-	manage     chan CtrlState
+	manage     chan *processCommand
 	waitChan   chan bool
 
 	runner ProcessRunner
 
-	stateMu *sync.Mutex
+	stateMu sync.Mutex
+	pidMu   sync.Mutex
 
-	*sync.Mutex
+	sync.Mutex
 }
 
 // ProcessRunner is an interface for running processes, used mainly for switching
@@ -125,15 +126,15 @@ func NewProcess(name string, command ...string) *Process {
 		KeepAlive:   true,
 		Throttle:    time.Second * 10,
 
-		outputChan: make(chan []byte, 0),
+		outputChan: make(chan []byte),
 		done:       make(chan int),
 		commands:   make(chan processCommand, 1),
-		manage:     make(chan CtrlState),
+		manage:     make(chan *processCommand),
 		Events:     make(chan Event),
 		waitChan:   make(chan bool),
 
-		stateMu: new(sync.Mutex),
-		Mutex:   new(sync.Mutex),
+		// stateMu: new(sync.Mutex),
+		// Mutex:   new(sync.Mutex),
 	}
 }
 
@@ -164,6 +165,28 @@ func (p *Process) SetRunner(r ProcessRunner) {
 	p.runner = r
 }
 
+// Start the process
+func (p *Process) Start() error {
+	replyChan := make(chan error)
+	c := &processCommand{COMMAND_START, replyChan}
+	p.manage <- c
+	return <-c.Reply
+}
+
+func (p *Process) Stop() error {
+	replyChan := make(chan error)
+	c := &processCommand{COMMAND_STOP, replyChan}
+	p.manage <- c
+	return <-c.Reply
+}
+
+func (p *Process) Restart() error {
+	replyChan := make(chan error)
+	c := &processCommand{COMMAND_RESTART, replyChan}
+	p.manage <- c
+	return <-c.Reply
+}
+
 func (p *Process) exec() error {
 	p.Lock()
 	defer p.Unlock()
@@ -183,12 +206,23 @@ func (p *Process) exec() error {
 	p.proc = proc
 
 	p.setStatus(ProcessRunning)
-	p.setPid(proc.Pid)
+
+	// <-time.After(100 * time.Millisecond)
+
+	// p.setPid(proc.Pid)
 	return nil
 }
 
 func (p *Process) setPid(pid int) {
-	p.PID = pid
+	p.pidMu.Lock()
+	defer p.pidMu.Unlock()
+	p.pid = pid
+}
+
+func (p *Process) PID() int {
+	p.pidMu.Lock()
+	defer p.pidMu.Unlock()
+	return p.pid
 }
 
 func (p *Process) terminate() error {
@@ -246,13 +280,15 @@ func (p *Process) runloop() {
 
 				// willExit = false
 
-			case ctrlState := <-p.manage:
-				switch ctrlState {
+			case command := <-p.manage:
+				switch command.Command {
 				case COMMAND_START:
 					err := p.exec()
 					if err != nil {
 						fmt.Println("Failed to start process:", err.Error())
+						command.Reply <- err
 					} else {
+						command.Reply <- nil
 						select {
 						case p.Events <- StartEvent:
 						default:
@@ -268,6 +304,7 @@ func (p *Process) runloop() {
 					} else {
 						fmt.Println("proc is nil")
 					}
+					command.Reply <- nil
 
 					// err := p.terminate()
 					// if err != nil {
@@ -275,9 +312,10 @@ func (p *Process) runloop() {
 					// }
 
 				case COMMAND_RESTART:
-					p.manage <- COMMAND_STOP
+					p.Stop()
 					<-time.After(p.Throttle)
-					p.manage <- COMMAND_START
+					p.Start()
+					command.Reply <- nil
 				}
 
 				// 			case command := <-p.commands:
