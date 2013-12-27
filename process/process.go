@@ -49,6 +49,16 @@ func (p *ProcessState) String() string {
 	return "unknown"
 }
 
+func (e *Event) String() string {
+	switch *e {
+	case StartEvent:
+		return "start"
+	case StopEvent:
+		return "stop"
+	}
+	return "unknown"
+}
+
 // Process represents a process running under command of Nord agent
 type Process struct {
 	// Process Name
@@ -94,7 +104,6 @@ type Process struct {
 	proc       *os.Process
 	outputChan chan []byte
 	done       chan int
-	commands   chan processCommand
 	Events     chan Event
 	manage     chan *processCommand
 	waitChan   chan bool
@@ -128,13 +137,9 @@ func NewProcess(name string, command ...string) *Process {
 
 		outputChan: make(chan []byte),
 		done:       make(chan int),
-		commands:   make(chan processCommand, 1),
 		manage:     make(chan *processCommand),
 		Events:     make(chan Event),
 		waitChan:   make(chan bool),
-
-		// stateMu: new(sync.Mutex),
-		// Mutex:   new(sync.Mutex),
 	}
 }
 
@@ -206,10 +211,6 @@ func (p *Process) exec() error {
 	p.proc = proc
 
 	p.setStatus(ProcessRunning)
-
-	// <-time.After(100 * time.Millisecond)
-
-	// p.setPid(proc.Pid)
 	return nil
 }
 
@@ -260,7 +261,6 @@ func (p *Process) runloop() {
 			select {
 			case status := <-p.done:
 				fmt.Println("Processs Exited")
-
 				p.finish(status)
 
 				select {
@@ -286,14 +286,15 @@ func (p *Process) runloop() {
 					err := p.exec()
 					if err != nil {
 						fmt.Println("Failed to start process:", err.Error())
-						command.Reply <- err
 					} else {
-						command.Reply <- nil
+						// p.Events <- StartEvent
 						select {
 						case p.Events <- StartEvent:
 						default:
+							fmt.Println("Start Event Ignored")
 						}
 					}
+					command.Reply <- err
 
 					fmt.Println("Started")
 
@@ -312,8 +313,10 @@ func (p *Process) runloop() {
 					// }
 
 				case COMMAND_RESTART:
-					p.Stop()
-					<-time.After(p.Throttle)
+					if p.PID() != 0 {
+						p.Stop()
+						<-time.After(p.Throttle)
+					}
 					p.Start()
 					command.Reply <- nil
 				}
