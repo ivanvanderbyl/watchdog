@@ -10,27 +10,34 @@ import (
 )
 
 func main() {
-	RealMain()
-}
-
-func RealMain() {
-	WritePid("watchdog-sim")
+	WritePid("watchdog")
 
 	w := watchdog.New()
 	p := process.NewProcess("Simulator", "/Applications/Xcode51-DP.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Applications/iPhone Simulator.app/Contents/MacOS/iPhone Simulator")
 
-	fmt.Println("Adding process")
 	w.Add(p)
-
-	fmt.Println("Start process")
 	p.Run()
+
+	done := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case event := <-p.Events:
+				fmt.Printf("EVENT: %s\n", event.String())
+				switch event {
+				case process.StartEvent:
+					fmt.Printf("Process started pid=%d\n", p.PID())
+				case process.StopEvent:
+					fmt.Printf("Process exited status=%d\n", p.LastExitStatus)
+					done <- true
+				}
+			}
+		}
+	}()
+
 	p.Start()
-
-	fmt.Printf("Process started pid=%d\n", p.PID())
-
-	p.Wait()
-
-	fmt.Printf("Process exited status=%d\n", p.LastExitStatus)
+	<-done
 }
 
 func WritePid(name string) {
