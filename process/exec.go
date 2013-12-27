@@ -31,7 +31,6 @@ func (r *DefaultRunner) Exec(p *Process, outputChan chan []byte, done chan int) 
 	cmd.Env = append(cmd.Env, p.formattedEnv()...)
 
 	writer := &outputWriter{outputChan}
-
 	cmd.Stderr = writer
 	cmd.Stdout = writer
 
@@ -39,10 +38,10 @@ func (r *DefaultRunner) Exec(p *Process, outputChan chan []byte, done chan int) 
 		return nil, err
 	}
 
-	go func() {
+	p.setPid(cmd.Process.Pid)
+
+	go func(cmd *exec.Cmd) {
 		defer func() {
-			p.Lock()
-			defer p.Unlock()
 			p.setPid(0)
 		}()
 
@@ -57,7 +56,7 @@ func (r *DefaultRunner) Exec(p *Process, outputChan chan []byte, done chan int) 
 			}
 		}
 		done <- exitStatus
-	}()
+	}(cmd)
 
 	return cmd.Process, nil
 }
