@@ -3,6 +3,7 @@ package watchdog
 import (
 	"fmt"
 	"github.com/appio/watchdog/process"
+	"strings"
 	"sync"
 )
 
@@ -18,12 +19,16 @@ import (
 
 type Watchdog struct {
 	childProcesses map[string]*process.Process
+	managed        map[string]chan bool
 	pMu            sync.Mutex
+	manage         chan int
 }
 
 func New() *Watchdog {
 	return &Watchdog{
 		childProcesses: make(map[string]*process.Process),
+		managed:        make(map[string]chan bool, 1),
+		manage:         make(chan int),
 	}
 }
 
@@ -37,6 +42,7 @@ func (w *Watchdog) Add(p *process.Process) error {
 	}
 
 	w.childProcesses[p.Name] = p
+	w.manageProcess(p)
 
 	return nil
 }
@@ -50,7 +56,10 @@ func (w *Watchdog) Remove(p *process.Process) error {
 		return fmt.Errorf("process not found: %s", p.Name)
 	}
 
+	w.managed[p.Name] <- true
+
 	delete(w.childProcesses, p.Name)
+	delete(w.managed, p.Name)
 
 	return nil
 }
@@ -61,4 +70,22 @@ func (w *Watchdog) FindByName(name string) *process.Process {
 	defer w.pMu.Unlock()
 
 	return w.childProcesses[name]
+}
+
+func (w *Watchdog) manageProcess(p *process.Process) error {
+	w.managed[p.Name] = make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-w.managed[p.Name]:
+				return
+
+			case out := <-p.OutputChan():
+				fmt.Printf("[%s] > %s\n", p.Name, strings.TrimRight(string(out), "\n"))
+			}
+		}
+	}()
+
+	return nil
 }
