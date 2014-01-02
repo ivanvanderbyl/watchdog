@@ -1,3 +1,5 @@
 /run/*
 
 /bin/
+
+/.DS_Store

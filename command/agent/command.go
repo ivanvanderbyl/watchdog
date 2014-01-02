@@ -25,9 +25,9 @@ type Command struct {
 
 func (c *Command) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
-		OutputPrefix: "==> ",
-		InfoPrefix:   "    ",
-		ErrorPrefix:  "==> ",
+		OutputPrefix: "---> ",
+		InfoPrefix:   "     ",
+		ErrorPrefix:  " ! > ",
 		Ui:           c.Ui,
 	}
 
@@ -36,7 +36,7 @@ func (c *Command) Run(args []string) int {
 	// Parse our configs
 	c.args = args
 
-	// Setup serf
+	// Setup watchdog
 	agent := NewAgent()
 	if agent == nil {
 		return 1
@@ -49,7 +49,7 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output("Watchdog agent running!")
+	c.Ui.Info("Watchdog agent running!")
 
 	// Wait for exit
 	return c.handleSignals(agent)
