@@ -2,60 +2,42 @@ package main
 
 import (
 	"fmt"
-	"github.com/appio/watchdog/process"
-	"github.com/appio/watchdog/watchdog"
+	"github.com/mitchellh/cli"
+	"io/ioutil"
+	"log"
 	"os"
-	"path/filepath"
-	"strconv"
 )
 
 func main() {
-	WritePid("watchdog")
-
-	w := watchdog.New()
-	p := process.NewProcess("Simulator", "/Applications/Xcode51-DP.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Applications/iPhone Simulator.app/Contents/MacOS/iPhone Simulator")
-
-	w.Add(p)
-	p.Run()
-
-	done := make(chan bool)
-
-	go func() {
-		for {
-			select {
-			case event := <-p.Events:
-				fmt.Printf("EVENT: %s\n", event.String())
-				switch event {
-				case process.StartEvent:
-					fmt.Printf("Process started pid=%d\n", p.PID())
-				case process.StopEvent:
-					fmt.Printf("Process exited status=%d\n", p.LastExitStatus)
-					done <- true
-				}
-			}
-		}
-	}()
-
-	p.Start()
-	<-done
+	os.Exit(realMain())
 }
 
-func WritePid(name string) {
-	pidPath := "run"
-	pidfile := filepath.Join(pidPath, fmt.Sprintf("%s.pid", name))
+func realMain() int {
+	log.SetOutput(ioutil.Discard)
 
-	err := os.MkdirAll(pidPath, 0750)
-	if err != nil {
-		panic(err)
+	// Get the command line args. We shortcut "--version" and "-v" to
+	// just show the version.
+	args := os.Args[1:]
+	for _, arg := range args {
+		if arg == "-v" || arg == "--version" {
+			newArgs := make([]string, len(args)+1)
+			newArgs[0] = "version"
+			copy(newArgs[1:], args)
+			args = newArgs
+			break
+		}
 	}
 
-	file, err := os.Create(pidfile)
-	defer file.Close()
-
-	if err != nil {
-		panic(err)
+	cli := &cli.CLI{
+		Args:     args,
+		Commands: Commands,
 	}
 
-	pid := os.Getpid()
-	file.WriteString(strconv.FormatInt(int64(pid), 10))
+	exitCode, err := cli.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error executing CLI: %s\n", err.Error())
+		return 1
+	}
+
+	return exitCode
 }
