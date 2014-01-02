@@ -72,6 +72,16 @@ func (w *Watchdog) FindByName(name string) *process.Process {
 	return w.childProcesses[name]
 }
 
+// Shutdown stops all running processes ready for safe exit
+func (w *Watchdog) Shutdown() error {
+	fmt.Println("Watchdog shutting down...")
+	for _, proc := range w.childProcesses {
+		fmt.Printf("Stopping process: %s\n", proc.Name)
+		proc.Stop()
+	}
+
+	return nil
+}
 func (w *Watchdog) manageProcess(p *process.Process) error {
 	w.managed[p.Name] = make(chan bool)
 

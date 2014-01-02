@@ -47,3 +47,7 @@ func TestFindProcessByName(t *testing.T) {
 		t.Fatal("expected found process to be equal to first process")
 	}
 }
+
+func TestWatchdogShutdown(t *testing.T) {
+
+}
