@@ -2,6 +2,7 @@ package process
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"syscall"
@@ -64,6 +65,10 @@ type Process struct {
 	// Process Name
 	Name string `json:"name"`
 
+	// Enabled indicates whether to run this process. A value of false will ensure
+	// it is always stopped
+	Enabled bool `json:"enabled"`
+
 	// Process Identifier
 	pid int `json:"pid,int"`
 
@@ -97,6 +102,12 @@ type Process struct {
 	// User and Group to switch to after exec
 	User  string `json:"user"`
 	Group string `json:"group"`
+
+	// WorkingDirectory is the directory to chdir to after forking
+	WorkingDirectory string `json:"working_directory"`
+
+	// Outlets are used to send the process output to other services
+	outlets []*io.Writer
 
 	// Internal state of the process
 	state ProcessState
@@ -227,7 +238,18 @@ func (p *Process) PID() int {
 }
 
 func (p *Process) terminate() error {
-	return p.proc.Kill()
+	// didExit := make(chan bool)
+
+	err := p.proc.Signal(syscall.SIGQUIT)
+	if err != nil {
+		return err
+	}
+
+	if p.PID() == 0 {
+	}
+	return nil
+
+	// return p.proc.Kill()
 }
 
 func (p *Process) formattedEnv() []string {
