@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -57,4 +58,34 @@ func TestReadConfigPaths_TOML_file(t *testing.T) {
 	if config.RPCAddr != "localhost:1234" {
 		t.Fatalf("bad: %#v", config)
 	}
+}
+
+func TestReadConfigPaths_dir(t *testing.T) {
+	td, err := ioutil.TempDir("", "watchdog")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(td)
+
+	err = ioutil.WriteFile(filepath.Join(td, "a.json"),
+		[]byte(`{"rpc_addr": "bar"}`), 0644)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	err = ioutil.WriteFile(filepath.Join(td, "b.toml"),
+		[]byte(`rpc_addr = "baz"`), 0644)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	config, err := ReadConfigPaths([]string{td})
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if config.RPCAddr != "baz" {
+		t.Fatalf("bad: %#v", config)
+	}
+
 }
