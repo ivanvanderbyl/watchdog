@@ -2,11 +2,17 @@ package agent
 
 import (
 	"github.com/appio/watchdog/watchdog"
+	"io"
+	"log"
+	"os"
 	"sync"
 )
 
 // Agent starts and manages the Watchdog instance.
 type Agent struct {
+	// logger instance wraps the logOutput
+	logger *log.Logger
+
 	dog *watchdog.Watchdog
 
 	// shutdownCh is used for shutdowns
@@ -15,19 +21,28 @@ type Agent struct {
 	shutdownLock sync.Mutex
 }
 
-func NewAgent(config *Config) *Agent {
+func NewAgent(config *Config, logOutput io.Writer) *Agent {
+	// Ensure we have a log sink
+	if logOutput == nil {
+		logOutput = os.Stderr
+	}
+
 	return &Agent{
 		dog:        watchdog.New(),
+		logger:     log.New(logOutput, "", log.LstdFlags),
 		shutdownCh: make(chan struct{}),
 	}
 }
 
 func (a *Agent) Start() error {
+	a.logger.Println("[INFO] Watchdog starting...")
+
 	return nil
 }
 
 func (a *Agent) Shutdown() error {
-	return nil
+	a.logger.Println("[INFO] Gracefully shutting down...")
+	return a.dog.Shutdown()
 }
 
 // ShutdownCh returns a channel that can be selected to wait
