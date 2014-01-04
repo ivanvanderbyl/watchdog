@@ -15,7 +15,7 @@ type Agent struct {
 	shutdownLock sync.Mutex
 }
 
-func NewAgent() *Agent {
+func NewAgent(config *Config) *Agent {
 	return &Agent{
 		dog:        watchdog.New(),
 		shutdownCh: make(chan struct{}),

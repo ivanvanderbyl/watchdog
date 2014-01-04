@@ -36,9 +36,13 @@ func (c *Command) Run(args []string) int {
 
 	// Parse our configs
 	c.args = args
+	config := c.readConfig()
+	if config == nil {
+		return 1
+	}
 
 	// Setup watchdog
-	agent := NewAgent()
+	agent := NewAgent(config)
 	if agent == nil {
 		return 1
 	}

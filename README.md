@@ -12,3 +12,4 @@ Watchdog consists of a single, easy to deploy binary that acts as both the agent
 One of the main design goals of Watchdog is to be easy to configure, as such we use `toml`, a modern replacement for the classic config file providing a clean, concise, and extensive set of constructs for describing process bahaviour.
 
 Internally Watchdog uses an RPC interface for communicating with the agent process which can easily be programmed against.
+
