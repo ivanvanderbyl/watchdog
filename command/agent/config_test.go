@@ -87,5 +87,4 @@ func TestReadConfigPaths_dir(t *testing.T) {
 	if config.RPCAddr != "baz" {
 		t.Fatalf("bad: %#v", config)
 	}
-
 }

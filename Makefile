@@ -13,6 +13,7 @@ deps:
 	echo $(DEPS) | xargs -n1 go get -d
 	go get github.com/axw/gocov/gocov
 	go get -u github.com/matm/gocov-html
+	github.com/hashicorp/serf/testutil
 
 test: deps
 	go list ./... | xargs -n1 go test
