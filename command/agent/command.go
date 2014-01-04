@@ -149,7 +149,7 @@ func (c *Command) handleSignals(agent *Agent) int {
 }
 
 func (c *Command) Synopsis() string {
-	return "Runs the Watchdog agent"
+	return "Starts the Watchdog agent"
 }
 
 func (c *Command) Help() string {

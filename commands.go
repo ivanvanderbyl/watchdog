@@ -22,6 +22,12 @@ func init() {
 			}, nil
 		},
 
+		"register": func() (cli.Command, error) {
+			return &command.RegisterCommand{
+				Ui: ui,
+			}, nil
+		},
+
 		"version": func() (cli.Command, error) {
 			return &command.VersionCommand{
 				Revision:          GitCommit,
