@@ -164,6 +164,8 @@ Options:
                            from. This will read every file ending
                            in ".json" or ".toml" as configuration in this
                            directory in alphabetical order.
+  -log-level=info          Log level of the agent (debug,info,warn,error).
+  -rpc-addr=127.0.0.1:6673 Address to bind the RPC listener.
 
 `
 	return strings.TrimSpace(helpText)
