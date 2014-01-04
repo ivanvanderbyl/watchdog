@@ -22,7 +22,6 @@ func TestCommandRun(t *testing.T) {
 	}
 
 	args := []string{
-		"-bind", testutil.GetBindAddr().String(),
 		"-rpc-addr", getRPCAddr(),
 	}
 

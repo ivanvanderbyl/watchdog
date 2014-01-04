@@ -3,7 +3,10 @@ package agent
 import (
 	"flag"
 	"fmt"
+	"github.com/hashicorp/logutils"
 	"github.com/mitchellh/cli"
+	"io"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -22,6 +25,7 @@ type Command struct {
 	Ui         cli.Ui
 	ShutdownCh <-chan struct{}
 	args       []string
+	logFilter  *logutils.LevelFilter
 }
 
 func (c *Command) Run(args []string) int {
@@ -41,23 +45,61 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// Setup the log outputs
+	logGate, logWriter, logOutput := c.setupLoggers(config)
+	if logWriter == nil {
+		return 1
+	}
+
 	// Setup watchdog
-	agent := NewAgent(config)
+	agent := NewAgent(config, logGate)
 	if agent == nil {
 		return 1
 	}
 	defer agent.Shutdown()
 
-	// Start the agent after the handler is registered
-	if err := agent.Start(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to start the Watchdog agent: %v", err))
+	// Start the agent
+	ipc := c.startAgent(config, agent, logWriter, logOutput)
+	if ipc == nil {
 		return 1
 	}
+	defer ipc.Shutdown()
 
 	c.Ui.Info("Watchdog agent running!")
 
+	// Enable log streaming
+	c.Ui.Info("")
+	c.Ui.Output("Log data will now stream in as it occurs:\n")
+	logGate.Flush()
+
 	// Wait for exit
 	return c.handleSignals(agent)
+}
+
+// startAgent is used to start the agent and IPC
+func (c *Command) startAgent(config *Config, agent *Agent,
+	logWriter *logWriter, logOutput io.Writer) *AgentIPC {
+
+	// Start the agent after the handler is registered
+	if err := agent.Start(); err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to start the Watchdog agent: %v", err))
+		return nil
+	}
+
+	// Setup the RPC listener
+	rpcListener, err := net.Listen("tcp", config.RPCAddr)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error starting RPC listener: %s", err))
+		return nil
+	}
+
+	// Start the IPC layer
+	c.Ui.Output("Starting Serf agent RPC...")
+	ipc := NewAgentIPC(agent, rpcListener, logOutput, logWriter)
+
+	c.Ui.Info(fmt.Sprintf("RPC address: '%s'", config.RPCAddr))
+
+	return ipc
 }
 
 // readConfig is responsible for setup of our configuration using
@@ -146,6 +188,31 @@ func (c *Command) handleSignals(agent *Agent) int {
 	case <-gracefulCh:
 		return 0
 	}
+}
+
+// setupLoggers is used to setup the logGate, logWriter, and our logOutput
+func (c *Command) setupLoggers(config *Config) (*GatedWriter, *logWriter, io.Writer) {
+	// Setup logging. First create the gated log writer, which will
+	// store logs until we're ready to show them. Then create the level
+	// filter, filtering logs of the specified level.
+	logGate := &GatedWriter{
+		Writer: &cli.UiWriter{Ui: c.Ui},
+	}
+
+	c.logFilter = LevelFilter()
+	c.logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
+	c.logFilter.Writer = logGate
+	if !ValidateLevelFilter(c.logFilter.MinLevel, c.logFilter) {
+		c.Ui.Error(fmt.Sprintf(
+			"Invalid log level: %s. Valid log levels are: %v",
+			c.logFilter.MinLevel, c.logFilter.Levels))
+		return nil, nil, nil
+	}
+
+	// Create a log writer, and wrap a logOutput around it
+	logWriter := NewLogWriter(512)
+	logOutput := io.MultiWriter(c.logFilter, logWriter)
+	return logGate, logWriter, logOutput
 }
 
 func (c *Command) Synopsis() string {
