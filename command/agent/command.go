@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"flag"
 	"fmt"
 	"github.com/mitchellh/cli"
 	"os"
@@ -53,6 +54,41 @@ func (c *Command) Run(args []string) int {
 
 	// Wait for exit
 	return c.handleSignals(agent)
+}
+
+// readConfig is responsible for setup of our configuration using
+// the command line and any file configs
+func (c *Command) readConfig() *Config {
+	var cmdConfig Config
+	var configFiles []string
+	cmdFlags := flag.NewFlagSet("agent", flag.ContinueOnError)
+	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
+
+	cmdFlags.Var((*AppendSliceValue)(&configFiles), "config-file",
+		"json file to read config from")
+	cmdFlags.Var((*AppendSliceValue)(&configFiles), "config-dir",
+		"directory of json files to read")
+	cmdFlags.StringVar(&cmdConfig.LogLevel, "log-level", "", "log level")
+	cmdFlags.StringVar(&cmdConfig.RPCAddr, "rpc-addr", "",
+		"address to bind RPC listener to")
+
+	if err := cmdFlags.Parse(c.args); err != nil {
+		return nil
+	}
+
+	config := DefaultConfig
+	if len(configFiles) > 0 {
+		fileConfig, err := ReadConfigPaths(configFiles)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return nil
+		}
+
+		config = MergeConfig(config, fileConfig)
+	}
+
+	config = MergeConfig(config, &cmdConfig)
+	return config
 }
 
 // handleSignals blocks until we get an exit-causing signal
