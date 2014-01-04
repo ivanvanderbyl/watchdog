@@ -2,8 +2,10 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
+	"os"
 )
 
 func getRPCAddr() string {
@@ -16,4 +18,15 @@ func getRPCAddr() string {
 	}
 
 	panic("no listener")
+}
+
+func testAgent(logOutput io.Writer) *Agent {
+	if logOutput == nil {
+		logOutput = os.Stderr
+	}
+	config := DefaultConfig
+
+	agent := NewAgent(config, logOutput)
+
+	return agent
 }

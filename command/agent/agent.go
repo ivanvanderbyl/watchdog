@@ -50,3 +50,8 @@ func (a *Agent) Shutdown() error {
 func (a *Agent) ShutdownCh() <-chan struct{} {
 	return a.shutdownCh
 }
+
+// RegisterProcess takes a configuration file and registers a new process
+func (a *Agent) RegisterProcess(configurationFile io.Reader) error {
+	return nil
+}

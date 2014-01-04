@@ -1,5 +1,0 @@
-package ipc
-
-import (
-	"testing"
-)

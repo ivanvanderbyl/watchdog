@@ -48,18 +48,34 @@ func (c *RegisterCommand) Run(args []string) int {
 	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
 	cmdFlags.BoolVar(&noStartOnLoad, "no-start", false, "no-start")
 	cmdFlags.BoolVar(&noWatch, "no-watch", false, "no-watch")
+	rpcAddr := RPCAddrFlag(cmdFlags)
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1
 	}
 
 	configPaths := cmdFlags.Args()
-	fmt.Println(configPaths, noStartOnLoad)
 	if len(configPaths) == 0 {
 		c.Ui.Error("At least one configuration file must be specified.")
 		c.Ui.Error("")
 		c.Ui.Error(c.Help())
 		return 1
 	}
+
+	client, err := RPCClient(*rpcAddr)
+	if err != nil {
+		c.Ui.Error("Error connecting to Watchdog agent")
+		return 1
+	}
+	defer client.Close()
+
+	n, err := client.Register(configPaths, noWatch, noStartOnLoad)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error registering process: %s", err))
+		return 1
+	}
+
+	c.Ui.Output(fmt.Sprintf(
+		"Successfully registered %d processes.", n))
 
 	return 0
 }

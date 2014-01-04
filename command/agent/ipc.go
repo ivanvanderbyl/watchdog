@@ -1,4 +1,4 @@
-package ipc
+package agent
 
 /*
  The agent exposes an IPC mechanism that is used for both controlling
@@ -23,8 +23,15 @@ package ipc
 */
 
 import (
+	"bufio"
 	"fmt"
-	"github.com/appio/watchdog/command/agent"
+	"io"
+	"log"
+	"os"
+	// "github.com/hashicorp/logutils"
+	"github.com/ugorji/go/codec"
+	"net"
+	"sync"
 )
 
 // Protocol versions
@@ -35,6 +42,7 @@ const (
 
 // Commands
 const (
+	handshakeCommand  = "handshake"
 	registerCommand   = "register"
 	deregisterCommand = "deregister"
 	startCommand      = "start"
@@ -71,7 +79,13 @@ type handshakeRequest struct {
 }
 
 type registerRequest struct {
-	ConfigPath string
+	ConfigPaths []string
+	StartOnLoad bool
+	WatchPaths  bool
+}
+
+type registerResponse struct {
+	Num int32
 }
 
 type monitorRequest struct {
@@ -184,11 +198,11 @@ func (i *AgentIPC) listen() {
 
 		// Wrap the connection in a client
 		client := &IPCClient{
-			name:         conn.RemoteAddr().String(),
-			conn:         conn,
-			reader:       bufio.NewReader(conn),
-			writer:       bufio.NewWriter(conn),
-			eventStreams: make(map[uint64]*eventStream),
+			name:   conn.RemoteAddr().String(),
+			conn:   conn,
+			reader: bufio.NewReader(conn),
+			writer: bufio.NewWriter(conn),
+			// eventStreams: make(map[uint64]*eventStream),
 		}
 		client.dec = codec.NewDecoder(client.reader,
 			&codec.MsgpackHandle{RawToString: true, WriteExt: true})
@@ -228,11 +242,11 @@ func (i *AgentIPC) deregisterClient(client *IPCClient) {
 		client.logStreamer.Stop()
 	}
 
-	// Remove from event handlers
-	for _, es := range client.eventStreams {
-		i.agent.DeregisterEventHandler(es)
-		es.Stop()
-	}
+	// // Remove from event handlers
+	// for _, es := range client.eventStreams {
+	// 	i.agent.DeregisterEventHandler(es)
+	// 	es.Stop()
+	// }
 }
 
 // handleClient is a long running routine that handles a single client
@@ -305,4 +319,12 @@ func (i *AgentIPC) handleHandshake(client *IPCClient, seq uint64) error {
 		client.version = req.Version
 	}
 	return client.Send(&resp, nil)
+}
+
+// Used to convert an error to a string representation
+func errToString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
