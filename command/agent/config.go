@@ -15,7 +15,7 @@ import (
 // DefaultConfig contains the defaults for configurations.
 var DefaultConfig = &Config{
 	LogLevel: "INFO",
-	RPCAddr:  "127.0.0.1:7373",
+	RPCAddr:  "127.0.0.1:6673",
 }
 
 type dirEnts []os.FileInfo
@@ -26,10 +26,6 @@ type dirEnts []os.FileInfo
 // a configuration file.
 type Config struct {
 
-	// ConfigDir is the directory to load process configurations from. This
-	// directory will be watched for changes.
-	ConfigDir string `mapstructure:"config_dir"`
-
 	// LogLevel is the level of the logs to output.
 	// This can be updated during a reload.
 	LogLevel string `mapstructure:"log_level"`
@@ -38,13 +34,17 @@ type Config struct {
 	// interface.
 	RPCAddr string `mapstructure:"rpc_addr"`
 
-	// LogEntriesToken is used to authenticate the logging from the agent to LE.
-	// This is only used for sending agent/watchdog logs, not supervised process
-	// logs.
-	LogEntriesToken string `mapstructure:"log_entries_token"`
+	// // ConfigDir is the directory to load process configurations from. This
+	// // directory will be watched for changes.
+	// ConfigDir string `mapstructure:"config_dir"`
+	//
+	// // LogEntriesToken is used to authenticate the logging from the agent to LE.
+	// // This is only used for sending agent/watchdog logs, not supervised process
+	// // logs.
+	// LogEntriesToken string `mapstructure:"log_entries_token"`
 
-	// loggingOutlet is the outlet to send logs to
-	loggingOutlet io.Writer
+	// // loggingOutlet is the outlet to send logs to
+	// loggingOutlet io.Writer
 }
 
 // DecodeConfigFromJSON decodes a JSON config
@@ -105,14 +105,14 @@ func DecodeConfigFromTOML(r io.Reader) (*Config, error) {
 func MergeConfig(a, b *Config) *Config {
 	var result Config = *a
 
-	// Copy the strings if they're set
-	if b.ConfigDir != "" {
-		result.ConfigDir = b.ConfigDir
-	}
+	// // Copy the strings if they're set
+	// if b.ConfigDir != "" {
+	// 	result.ConfigDir = b.ConfigDir
+	// }
 
-	if b.LogEntriesToken != "" {
-		result.LogEntriesToken = b.LogEntriesToken
-	}
+	// if b.LogEntriesToken != "" {
+	// 	result.LogEntriesToken = b.LogEntriesToken
+	// }
 
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
