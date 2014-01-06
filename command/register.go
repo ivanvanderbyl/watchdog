@@ -68,14 +68,14 @@ func (c *RegisterCommand) Run(args []string) int {
 	}
 	defer client.Close()
 
-	n, err := client.Register(configPaths, noWatch, noStartOnLoad)
+	names, err := client.Register(configPaths, !noWatch, !noStartOnLoad)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error registering process: %s", err))
 		return 1
 	}
 
 	c.Ui.Output(fmt.Sprintf(
-		"Successfully registered %d processes.", n))
+		"Successfully registered processes: %v", names))
 
 	return 0
 }

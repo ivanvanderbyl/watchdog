@@ -1,7 +1,10 @@
 package agent
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
 )
 
 func (a *AgentIPC) handleRegister(client *IPCClient, seq uint64) error {
@@ -10,11 +13,12 @@ func (a *AgentIPC) handleRegister(client *IPCClient, seq uint64) error {
 		return fmt.Errorf("decode failed: %v", err)
 	}
 
-	// a.logger.Printf("Got Register Request: %v\n", req)
-
-	num := len(req.ConfigPaths)
-
-	// a.agent.dog.Add(p)
+	var names []string
+	for _, file := range req.ConfigPaths {
+		f, err = os.Open(path)
+		defer f.Close()
+		a.agent.RegisterProcess(f)
+	}
 
 	// Respond
 	header := responseHeader{
@@ -22,7 +26,7 @@ func (a *AgentIPC) handleRegister(client *IPCClient, seq uint64) error {
 		Error: errToString(nil),
 	}
 	resp := registerResponse{
-		Num: int32(num),
+		Names: []string{"process_1", "process_2"},
 	}
 	return client.Send(&header, &resp)
 }

@@ -121,8 +121,9 @@ func (c *RPCClient) Close() error {
 	return nil
 }
 
-// Register is used to add instruct watchdog to monitor a new process
-func (c *RPCClient) Register(configPaths []string, watchPaths, startOnLoad bool) (int, error) {
+// Register is used to instruct watchdog to monitor a new process. It returns
+// a list of process names the were successfully added.
+func (c *RPCClient) Register(configPaths []string, watchPaths, startOnLoad bool) ([]string, error) {
 	header := requestHeader{
 		Command: registerCommand,
 		Seq:     c.getSeq(),
@@ -135,7 +136,7 @@ func (c *RPCClient) Register(configPaths []string, watchPaths, startOnLoad bool)
 	var resp registerResponse
 
 	err := c.genericRPC(&header, &req, &resp)
-	return int(resp.Num), err
+	return resp.Names, err
 }
 
 // handshake is used to perform the initial handshake on connect

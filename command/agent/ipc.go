@@ -85,7 +85,7 @@ type registerRequest struct {
 }
 
 type registerResponse struct {
-	Num int32
+	Names []string
 }
 
 type monitorRequest struct {
