@@ -1,15 +1,69 @@
 # Watchdog
 
-Watchdog is a network connected process manager for systems where you don't want to
-ever have to think about what is running and where its output is being sent.
+Watchdog is a modern rethinking of a process manager for running applications and services at scale with minimal condiguration and deployment effort.
 
-Watchdog supports multiple output drains to send your process's logs to `l2met`, `logentries`, `file` and any other http backed logging interface.
+### Architecture
 
-Watchdog is designed to run as a daemon and act as the parent process to the processes it manages. Watchdog is written in Go, and dispatches a separate goroutine for each process under management, using channels to route the output to the necessary drains.
+Watchdog is delivered as a single binary which acts as both the control interface and background agent. It is designed to run as a foreground process under Upstart or Launchd (See the examples directory for startup config examples).
 
-Watchdog consists of a single, easy to deploy binary that acts as both the agent and control interface.
+To start the background agent, run:
 
-One of the main design goals of Watchdog is to be easy to configure, as such we use `toml`, a modern replacement for the classic config file providing a clean, concise, and extensive set of constructs for describing process bahaviour.
+```sh
+watchdog agent
+```
 
-Internally Watchdog uses an RPC interface for communicating with the agent process which can easily be programmed against.
+This will also start the RPC interface on `127.0.0.1:6673`.
 
+### Configuration
+
+Watchdog is designed to be easy to configure either by hand or by machine. As such it supports two interchangable configuration formats; `JSON` and [TOML](https://github.com/mojombo/toml). Configuration files can be located anywhere and registred at runtime, at which point they will be watched for changes by Watchdog and changes automatically applied on save.
+
+To register a new process configuration:
+
+```sh
+watchdog register /path/to/myprocess.json
+```
+
+If your process is configured `start_on_load` it will be started immediately, otherwise it will be registered and not started until you start the process.
+
+### Process Control
+
+Watchdog CLI includes the usual methods for starting, stopping and restarting processes. The real power here comes from the process configuration which allows you to configure how processes are signalled to exit and how long to wait between restarting to avoid overloading the system.
+
+Start a process:
+
+```sh
+watchdog start myprocess
+```
+
+Stop a process:
+
+```sh
+watchdog stop myprocess
+```
+
+Restart a process:
+
+```sh
+watchdog restart myprocess
+```
+
+### Tailing process logs
+
+It is expected that any useful process output will be written to `stdout` or `stderr` as per the usual [12 Factor App](http://12factor.net/logs) setup.
+
+You can configure custom log drains to have process output directed to external services like `Librato`, `l2met`, `LogEntries`, `Loggly`, `file`.
+
+You can also use the CLI to tail process logs in realtime:
+
+```sh
+watchdog logs -tail myprocess
+```
+
+## API Documentation
+
+[API Documentation](http://godoc.org/github.com/appio/watchdog)
+
+# License
+
+Watchdog is licensed under the [Mozilla Public License, version 2.0](LICENSE)
