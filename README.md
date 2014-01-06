@@ -24,7 +24,7 @@ To register a new process configuration:
 watchdog register /path/to/myprocess.json
 ```
 
-If your process is configured `start_on_load` it will be started immediately, otherwise it will be registered and not started until you start the process.
+If your process is configured `start_on_load` it will be started immediately, otherwise it will be registered and not started until you manually start the process.
 
 ### Process Control
 
@@ -60,10 +60,27 @@ You can also use the CLI to tail process logs in realtime:
 watchdog logs -tail myprocess
 ```
 
+### Output drains
+
+Watchdog supports multiple output drains on a per process basis, allowing to you effortlessly ship output to any of the following services:
+
+- Librato
+- l2Met
+- LogEntries
+- Loggly
+
+## Design Goals
+
+*Some of the above mentioned features are still being developed*
+
+Watchdog is primarily designed to solve the problem of configuration drift across platforms for managing similar process types which often occures when working with different operating systems. At App.io we run OSX and Ubuntu. Our entire stack is configured using a configuration management tool and rarely ever do we connect directly to a machine to configure or probe anything.
+
+As such Watchdog is designed to output both machine readable (JSON) and human readable data, making automated configuration easy.
+
 ## API Documentation
 
 [API Documentation](http://godoc.org/github.com/appio/watchdog)
 
-# License
+## License
 
 Watchdog is licensed under the [Mozilla Public License, version 2.0](LICENSE)
