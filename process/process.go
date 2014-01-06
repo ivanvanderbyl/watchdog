@@ -100,8 +100,8 @@ type Process struct {
 	KeepAlive bool `json:"keep_alive"`
 
 	// User and Group to switch to after exec
-	User  string `json:"user"`
-	Group string `json:"group"`
+	UserName  string `json:"user"`
+	GroupName string `json:"group"`
 
 	// WorkingDirectory is the directory to chdir to after forking
 	WorkingDirectory string `json:"working_directory"`
@@ -152,6 +152,12 @@ func NewProcess(name string, command ...string) *Process {
 		Events:     make(chan Event),
 		waitChan:   make(chan bool),
 	}
+}
+
+// NewProcessFromConfig creates a process from a ProcessConf
+func NewProcessFromConfig(conf *ProcessConfig) *Process {
+
+	return &Process{}
 }
 
 func (p *Process) OutputChan() chan []byte {
