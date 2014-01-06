@@ -2,6 +2,8 @@
 
 Watchdog is a modern rethinking of a process manager for running applications and services at scale with minimal condiguration and deployment effort.
 
+[![Build Status](https://travis-ci.org/appio/watchdog.png?branch=master)](https://travis-ci.org/appio/watchdog)
+
 ### Architecture
 
 Watchdog is delivered as a single binary which acts as both the control interface and background agent. It is designed to run as a foreground process under Upstart or Launchd (See the examples directory for startup config examples).
