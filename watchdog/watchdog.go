@@ -76,8 +76,10 @@ func (w *Watchdog) FindByName(name string) *process.Process {
 func (w *Watchdog) Shutdown() error {
 	fmt.Println("Watchdog shutting down...")
 	for _, proc := range w.childProcesses {
-		fmt.Printf("Stopping process: %s\n", proc.Name)
-		proc.Stop()
+		if proc.IsRunning() {
+			fmt.Printf("Stopping process: %s\n", proc.Name)
+			proc.Stop()
+		}
 	}
 
 	return nil
