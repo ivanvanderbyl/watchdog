@@ -26,7 +26,7 @@ func (a *AgentIPC) handleRegister(client *IPCClient, seq uint64) error {
 		Error: errToString(nil),
 	}
 	resp := registerResponse{
-		Names: []string{"process_1", "process_2"},
+		Names: names,
 	}
 	return client.Send(&header, &resp)
 }
