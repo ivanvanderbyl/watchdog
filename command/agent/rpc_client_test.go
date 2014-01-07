@@ -3,6 +3,7 @@ package agent
 import (
 	"github.com/hashicorp/serf/testutil"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -28,7 +29,23 @@ func testRPCClient(t *testing.T) (*RPCClient, *Agent, *AgentIPC) {
 	return client, agent, ipc
 }
 
+var basicConfig string = `{
+  "name": "my_app",
+  "disabled": false,
+  "program": "/usr/local/bin/node",
+  "program_arguments": [],
+  "keep_alive": false,
+  "run_at_load": true
+}`
+
 func TestClientRegister(t *testing.T) {
+	tf, err := ioutil.TempFile("", "my_app.json")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	tf.Write([]byte(basicConfig))
+	tf.Close()
+
 	client, agent, ipc := testRPCClient(t)
 	defer ipc.Shutdown()
 	defer client.Close()
@@ -40,12 +57,16 @@ func TestClientRegister(t *testing.T) {
 
 	testutil.Yield()
 
-	resp, err := client.Register([]string{"/etc/watchdog.json"}, true, true)
+	resp, err := client.Register([]string{tf.Name()}, true, true)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if resp[0] != "process_1" {
-		t.Errorf("Expected process name to be %s", "process_1")
+	if len(resp) == 0 {
+		t.Fatal("No processes were registered")
+	}
+
+	if resp[0] != "my_app" {
+		t.Errorf("Expected process name to be %s, got %v", "my_app", resp[0])
 	}
 }
