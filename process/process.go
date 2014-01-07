@@ -156,8 +156,20 @@ func NewProcess(name string, command ...string) *Process {
 
 // NewProcessFromConfig creates a process from a ProcessConf
 func NewProcessFromConfig(conf *ProcessConfig) *Process {
+	var programArgs []string
 
-	return &Process{}
+	if conf.Program != "" {
+		programArgs = append(programArgs, conf.Program)
+	}
+	if len(conf.ProgramArguments) > 0 {
+		programArgs = append(programArgs, conf.ProgramArguments...)
+	}
+
+	return &Process{
+		Name:    conf.Name,
+		Enabled: !conf.Disabled,
+		Command: programArgs,
+	}
 }
 
 func (p *Process) OutputChan() chan []byte {

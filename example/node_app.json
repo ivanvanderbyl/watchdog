@@ -1,0 +1,32 @@
+{
+  "name": "my_app",
+  "disabled": false,
+  "user_name": "deploy",
+  "group_name": "admin",
+  "program": "/usr/local/bin/node",
+  "program_arguments": [
+    "app.js",
+    "--port=8000"
+  ],
+  "keep_alive": true,
+  "run_at_load": true,
+  "working_directory": "/home/deploy/srv",
+  "environment_variables": {
+    "HOSTNAME": "myapp.example.com"
+  },
+  "kill_signal": "SIGQUIT",
+  "kill_timeout": "30s",
+  "throttle_interval": "15s",
+  "pid_file": "/var/run/{{name}}.pid",
+  "outlets": {
+    "l2met": {
+      "url": "https://user:pass@myl2met.herokuapp.com/collect"
+    },
+    "file": {
+      "path": "/var/log/{{name}}.log"
+    },
+    "logentries": {
+      "token": "BLAH"
+    }
+  }
+}

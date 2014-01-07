@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"github.com/appio/watchdog/process"
 	"github.com/appio/watchdog/watchdog"
 	"io"
 	"log"
@@ -52,6 +53,16 @@ func (a *Agent) ShutdownCh() <-chan struct{} {
 }
 
 // RegisterProcess takes a configuration file and registers a new process
-func (a *Agent) RegisterProcess(configurationFile io.Reader) error {
-	return nil
+func (a *Agent) RegisterProcess(configPath string) (*process.Process, error) {
+	config, err := process.LoadConfigFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	proc := process.NewProcessFromConfig(config)
+	a.dog.Add(proc)
+
+	a.logger.Printf("[INFO] Registered process: %s", config.Name)
+
+	return proc, nil
 }

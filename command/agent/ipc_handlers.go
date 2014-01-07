@@ -1,10 +1,7 @@
 package agent
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
 )
 
 func (a *AgentIPC) handleRegister(client *IPCClient, seq uint64) error {
@@ -14,10 +11,13 @@ func (a *AgentIPC) handleRegister(client *IPCClient, seq uint64) error {
 	}
 
 	var names []string
-	for _, file := range req.ConfigPaths {
-		f, err = os.Open(path)
-		defer f.Close()
-		a.agent.RegisterProcess(f)
+	for _, path := range req.ConfigPaths {
+		proc, err := a.agent.RegisterProcess(path)
+		if err != nil {
+			continue
+		}
+
+		names = append(names, proc.Name)
 	}
 
 	// Respond
