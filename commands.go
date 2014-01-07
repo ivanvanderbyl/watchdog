@@ -28,6 +28,12 @@ func init() {
 			}, nil
 		},
 
+		"start": func() (cli.Command, error) {
+			return &command.StartCommand{
+				Ui: ui,
+			}, nil
+		},
+
 		"version": func() (cli.Command, error) {
 			return &command.VersionCommand{
 				Revision:          GitCommit,

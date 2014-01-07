@@ -139,6 +139,20 @@ func (c *RPCClient) Register(configPaths []string, watchPaths, startOnLoad bool)
 	return resp.Names, err
 }
 
+func (r *RPCClient) Start(names ...string) ([]int, error) {
+	header := requestHeader{
+		Command: startCommand,
+		Seq:     r.getSeq(),
+	}
+	req := startRequest{
+		Names: names,
+	}
+	var resp startResponse
+
+	err := r.genericRPC(&header, &req, &resp)
+	return resp.Pids, err
+}
+
 // handshake is used to perform the initial handshake on connect
 func (c *RPCClient) handshake() error {
 	header := requestHeader{

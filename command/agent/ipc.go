@@ -88,6 +88,14 @@ type registerResponse struct {
 	Names []string
 }
 
+type startRequest struct {
+	Names []string
+}
+
+type startResponse struct {
+	Pids []int
+}
+
 type monitorRequest struct {
 	LogLevel string
 }
@@ -290,6 +298,9 @@ func (i *AgentIPC) handleRequest(client *IPCClient, reqHeader *requestHeader) er
 
 	case registerCommand:
 		return i.handleRegister(client, seq)
+
+	case startCommand:
+		return i.handleStart(client, seq)
 
 	default:
 		respHeader := responseHeader{Seq: seq, Error: unsupportedCommand}

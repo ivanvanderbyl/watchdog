@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"github.com/appio/watchdog/process"
 	"github.com/appio/watchdog/watchdog"
 	"io"
@@ -60,9 +61,26 @@ func (a *Agent) RegisterProcess(configPath string) (*process.Process, error) {
 	}
 
 	proc := process.NewProcessFromConfig(config)
+	proc.Run()
 	a.dog.Add(proc)
 
 	a.logger.Printf("[INFO] Registered process: %s", config.Name)
+
+	return proc, nil
+}
+
+// StartProcess starts a process by name
+func (a *Agent) StartProcess(name string) (*process.Process, error) {
+	proc := a.dog.FindByName(name)
+	if proc == nil {
+		return nil, fmt.Errorf("Unable to find process: %s", name)
+	}
+
+	a.logger.Printf("Starting process: %s...", name)
+
+	proc.Start()
+
+	a.logger.Printf("Started process: %s=%d", name, proc.PID())
 
 	return proc, nil
 }

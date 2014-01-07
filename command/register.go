@@ -7,8 +7,7 @@ import (
 	"strings"
 )
 
-// JoinCommand is a Command implementation that tells a running Serf
-// agent to join another.
+// RegisterCommand registers a new process from a given config file
 type RegisterCommand struct {
 	Ui cli.Ui
 }
