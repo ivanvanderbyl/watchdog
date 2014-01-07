@@ -2,6 +2,9 @@ package process
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
 	// "fmt"
 	// "github.com/BurntSushi/toml"
 	"github.com/mitchellh/mapstructure"
@@ -90,6 +93,11 @@ type ProcessConfig struct {
 	Outlets map[string]map[string]string
 }
 
+// LoadConfigFile loads a process configuration from a file on disk.
+func LoadConfigFile(path string) (*ProcessConfig, error) {
+	return decodeConfigFile(path)
+}
+
 // DecodeConfigFromProcfile will construct a minimal process configuration from
 // a Foreman Procfile, starting it immediately and keeping it alive.
 func DecodeConfigFromProcfile(r io.Reader) (*ProcessConfig, error) {
@@ -125,4 +133,57 @@ func DecodeConfigFromJSON(r io.Reader) (*ProcessConfig, error) {
 // DecodeConfigFromTOML loads a ProcessConfig from a TOML file
 func DecodeConfigFromTOML(r io.Reader) (*ProcessConfig, error) {
 	return new(ProcessConfig), nil
+}
+
+func decodeConfigFile(path string) (*ProcessConfig, error) {
+	var fi os.FileInfo
+	var err error
+
+	fi, err = os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("could't stat '%s': %s", path, err)
+	}
+
+	result := new(ProcessConfig)
+
+	f, err := os.Open(path)
+	defer f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("error reading '%s': %s", path, err)
+	}
+
+	// If it isn't a JSON file, ignore it
+	if strings.HasSuffix(fi.Name(), ".json") {
+		result, err = DecodeConfigFromJSON(f)
+
+		if err != nil {
+			return nil, fmt.Errorf("error decoding '%s': %s", path, err)
+		}
+	} else if strings.HasSuffix(fi.Name(), ".toml") {
+		result, err = DecodeConfigFromTOML(f)
+
+		if err != nil {
+			return nil, fmt.Errorf("error decoding '%s': %s", path, err)
+		}
+	} else {
+
+		// Try decoding with json then toml, else fail
+		result, err = DecodeConfigFromJSON(f)
+		if err != nil {
+			f.Close()
+			f, err = os.Open(path)
+			defer f.Close()
+			if err != nil {
+				return nil, fmt.Errorf("error reading '%s': %s", path, err)
+			}
+
+			result, err = DecodeConfigFromTOML(f)
+			if err != nil {
+				return nil, fmt.Errorf("error decoding '%s': unknown format", path)
+			}
+		}
+		f.Close()
+	}
+
+	return result, nil
 }
