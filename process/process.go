@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -169,14 +170,36 @@ func NewProcessFromConfig(conf *ProcessConfig) *Process {
 		programArgs = append(programArgs, conf.ProgramArguments...)
 	}
 
+	var killSignal os.Signal
+	switch strings.Trim(strings.ToUpper(conf.KillSignal), " ") {
+	case "SIGQUIT", "QUIT":
+		killSignal = syscall.SIGQUIT
+	case "SIGTERM", "TERM":
+		killSignal = syscall.SIGTERM
+	case "SIGKILL", "KILL":
+		killSignal = syscall.SIGKILL
+	default:
+		killSignal = syscall.SIGKILL
+	}
+
+	killTimeout, err := time.ParseDuration(conf.KillTimeout)
+	if err != nil {
+		killTimeout = time.Second * 10
+	}
+
+	throttleInterval, err := time.ParseDuration(conf.ThrottleInterval)
+	if err != nil {
+		throttleInterval = time.Second * 15
+	}
+
 	return &Process{
 		Name:             conf.Name,
 		Enabled:          !conf.Disabled,
 		Command:          programArgs,
 		Environment:      conf.EnvironmentVariables,
-		KillSignal:       conf.KillSignal,
-		KillTimeout:      conf.KillTimeout,
-		Throttle:         conf.ThrottleInterval,
+		KillSignal:       killSignal,
+		KillTimeout:      killTimeout,
+		Throttle:         throttleInterval,
 		KeepAlive:        conf.KeepAlive,
 		RunAtLoad:        conf.RunAtLoad,
 		WorkingDirectory: conf.WorkingDirectory,
@@ -194,6 +217,18 @@ func (p *Process) Status() string {
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
 	return p.state.String()
+}
+
+func (p *Process) IsRunning() bool {
+	p.stateMu.Lock()
+	defer p.stateMu.Unlock()
+	return p.state == ProcessRunning
+}
+
+func (p *Process) IsStopped() bool {
+	p.stateMu.Lock()
+	defer p.stateMu.Unlock()
+	return p.state == ProcessStopped
 }
 
 func (p *Process) setStatus(state ProcessState) {
