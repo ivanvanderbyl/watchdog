@@ -93,9 +93,31 @@ type ProcessConfig struct {
 	Outlets map[string]map[string]string
 }
 
+// IsValid returns whether the config is valid for starting a process.
+func (p *ProcessConfig) IsValid() bool {
+	if p.Name == "" {
+		return false
+	}
+
+	if p.Program == "" && len(p.ProgramArguments) == 0 {
+		return false
+	}
+
+	return true
+}
+
 // LoadConfigFile loads a process configuration from a file on disk.
 func LoadConfigFile(path string) (*ProcessConfig, error) {
-	return decodeConfigFile(path)
+	conf, err := decodeConfigFile(path)
+	if err != nil {
+		return conf, err
+	}
+
+	if !conf.IsValid() {
+		return nil, fmt.Errorf("configuration is incomplete")
+	}
+
+	return conf, nil
 }
 
 // DecodeConfigFromProcfile will construct a minimal process configuration from
@@ -166,7 +188,6 @@ func decodeConfigFile(path string) (*ProcessConfig, error) {
 			return nil, fmt.Errorf("error decoding '%s': %s", path, err)
 		}
 	} else {
-
 		// Try decoding with json then toml, else fail
 		result, err = DecodeConfigFromJSON(f)
 		if err != nil {

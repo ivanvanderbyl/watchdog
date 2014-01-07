@@ -69,6 +69,10 @@ type Process struct {
 	// it is always stopped
 	Enabled bool `json:"enabled"`
 
+	// RunAtLoad key is used to control whether your process is launched once
+	// at the time the config is loaded. The default is true.
+	RunAtLoad bool
+
 	// Process Identifier
 	pid int `json:"pid,int"`
 
@@ -166,9 +170,18 @@ func NewProcessFromConfig(conf *ProcessConfig) *Process {
 	}
 
 	return &Process{
-		Name:    conf.Name,
-		Enabled: !conf.Disabled,
-		Command: programArgs,
+		Name:             conf.Name,
+		Enabled:          !conf.Disabled,
+		Command:          programArgs,
+		Environment:      conf.EnvironmentVariables,
+		KillSignal:       conf.KillSignal,
+		KillTimeout:      conf.KillTimeout,
+		Throttle:         conf.ThrottleInterval,
+		KeepAlive:        conf.KeepAlive,
+		RunAtLoad:        conf.RunAtLoad,
+		WorkingDirectory: conf.WorkingDirectory,
+		UserName:         conf.UserName,
+		GroupName:        conf.GroupName,
 	}
 }
 
